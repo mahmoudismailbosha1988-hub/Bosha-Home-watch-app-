@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق المراقبة المنزلي الشفاف</title>
+    <title>تطبيق المراقبة المنزلي الشفاف الكامل</title>
+    <!-- استدعاء المكتبة المساعدة للربط بين الهاتفين عبر السيرفر -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,7 +15,7 @@
             margin: 0;
         }
         .wrapper {
-            max-width: 600px;
+            max-width: 700px;
             margin: 0 auto;
             background: white;
             padding: 20px;
@@ -45,12 +47,30 @@
             background-color: #fce8e6;
             animation: blink 1.5s infinite;
         }
-        video {
-            width: 100%;
-            max-height: 400px;
+        .video-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .video-box {
             background: #202124;
             border-radius: 8px;
-            transform: scaleX(-1); /* لمرآة الكاميرا الأمامية */
+            padding: 5px;
+        }
+        video {
+            width: 100%;
+            max-height: 300px;
+            border-radius: 6px;
+            background: #000;
+        }
+        .video-label {
+            color: white;
+            font-size: 12px;
+            padding: 5px 0;
+            background: #3c4043;
+            border-radius: 4px;
+            margin-top: 5px;
         }
         button {
             background-color: #1a73e8;
@@ -81,37 +101,57 @@
     
     <div id="status" class="status-indicator">الحالة: في انتظار إذن الوصول الصريح...</div>
     
-    <video id="localVideo" autoplay playsinline muted></video>
-    
-    <br>
-    <button id="startBtn">بدء تشغيل البث الشفاف</button>
+    <button id="startBtn">بدء تشغيل البث والربط الشفاف</button>
+
+    <div class="video-container">
+        <!-- شاشة عرض كاميرا هذا الهاتف -->
+        <div class="video-box">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <div class="video-label">كاميرا هذا الجهاز (المحلية)</div>
+        </div>
+        
+        <!-- شاشة استقبال كاميرا الهاتف الآخر -->
+        <div class="video-box">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="video-label">بث الهاتف الآخر (عن بُعد)</div>
+        </div>
+    </div>
 </div>
 
 <script>
-// كود تشغيل الواجهة والربط الآمن الشفاف
 const startButton = document.getElementById('startBtn');
 const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
 const statusDiv = document.getElementById('status');
 
+// الاتصال بخادم الإشارات (استبدل هذا الرابط برابط سيرفرك الفعلي لاحقاً عند الرفع لإنترنت)
+const socket = io('http://localhost:3000'); 
+
 let localStream = null;
+let peerConnection = null;
+
+// خوادم STUN العامة من جوجل لإتمام الربط المباشر المباشر بدون تخزين بيانات
+const rtcConfig = {
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+};
 
 async function startCapture() {
     try {
-        // طلب الصلاحيات بشكل رسمي وشفاف من نظام التشغيل
+        // 1. طلب الصلاحيات بشكل رسمي وشفاف من نظام التشغيل
         localStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
         });
         
-        // عرض البث فوراً للمستخدم ليكون على علم تام بما يتم مشاركته
+        // عرض بث الكاميرا فوراً للمستخدم ليكون على علم تام بما يتم مشاركته
         localVideo.srcObject = localStream;
         
         // تحديث الواجهة لتنبيه المستخدم بنشاط الكاميرا المستمر
-        statusDiv.innerText = "🔴 جاري البث الآن ومشاركة الكاميرا والميكروفون بشكل مرئي";
+        statusDiv.innerText = "🔴 جاري البث الآن ومحاولة الربط الآمن مع الهاتف الآخر...";
         statusDiv.classList.add('status-active');
         
-        // تجهيز قنوات الاتصال المباشر (Peer-to-Peer) عبر WebRTC المشفر
-        initiateWebRTC(localStream);
+        // 2. تهيئة وتجهيز اتصال WebRTC
+        setupWebRTC();
 
     } catch (error) {
         console.error("خطأ في الحصول على الصلاحيات:", error);
@@ -121,23 +161,74 @@ async function startCapture() {
     }
 }
 
-function initiateWebRTC(stream) {
-    // استخدام خوادم STUN العامة من جوجل لإتمام الربط المباشر فقط دون تخزين أي داتا
-    const configuration = {
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    };
-    
-    const peerConnection = new RTCPeerConnection(configuration);
+function setupWebRTC() {
+    peerConnection = new RTCPeerConnection(rtcConfig);
 
     // إضافة مسارات الصوت والفيديو المسموح بها إلى الاتصال الآمن المشفر
-    stream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, stream);
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
     });
-    
-    console.log("تم تهيئة بروتوكول WebRTC المشفر للربط التلقائي بين الأجهزة بنجاح.");
+
+    // عندما يلتقط بروتوكول WebRTC إحداثيات شبكة مباشرة، يرسلها للهاتف الثاني فوراً عبر السيرفر
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            socket.emit('ice-candidate', event.candidate);
+        }
+    };
+
+    // عندما يبدأ استقبال بث الفيديو والصوت القادم من الهاتف الآخر، قم بعرضه في الشاشة الثانية
+    peerConnection.ontrack = event => {
+        remoteVideo.srcObject = event.streams[0];
+        statusDiv.innerText = "🟢 تم التوصيل بنجاح! البث المباشر المتبادل نشط الآن بأمان.";
+    };
+
+    // إنشاء بطاقة تعارف (Offer) وإرسالها لبدء عملية الاقتران التلقائي
+    createAndSendOffer();
 }
 
-// الاستماع لضغط زر البدء بناءً على رغبة المستخدم الكاملة
+async function createAndSendOffer() {
+    try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit('offer', offer);
+    } catch (e) {
+        console.error("خطأ أثناء إنشاء العرض:", e);
+    }
+}
+
+// --- الاستماع لرسائل خادم الإشارات القادمة من الهاتف الآخر للربط التلقائي ---
+
+socket.on('offer', async (offer) => {
+    if (!peerConnection) setupWebRTC();
+    try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        socket.emit('answer', answer);
+    } catch (e) {
+        console.error("خطأ أثناء معالجة العرض المتاح:", e);
+    }
+});
+
+socket.on('answer', async (answer) => {
+    try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    } catch (e) {
+        console.error("خطأ أثناء إدخال الإجابة المستلمة:", e);
+    }
+});
+
+socket.on('ice-candidate', async (candidate) => {
+    try {
+        if (peerConnection) {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+    } catch (e) {
+        console.error("خطأ أثناء إضافة إحداثيات الشبكة المستلمة:", e);
+    }
+});
+
+// تشغيل النظام عند ضغط الزر
 startButton.addEventListener('click', startCapture);
 </script>
 
