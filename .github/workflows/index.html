@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق المراقبة المنزلي الشفاف</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f2f5;
+            padding: 20px;
+            margin: 0;
+        }
+        .wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h2 { color: #1a73e8; }
+        .notice-box {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .status-indicator {
+            font-size: 16px;
+            font-weight: bold;
+            color: #5f6368;
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: #e8eaed;
+        }
+        .status-active {
+            color: #d93025;
+            background-color: #fce8e6;
+            animation: blink 1.5s infinite;
+        }
+        video {
+            width: 100%;
+            max-height: 400px;
+            background: #202124;
+            border-radius: 8px;
+            transform: scaleX(-1); /* لمرآة الكاميرا الأمامية */
+        }
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #1557b0; }
+        @keyframes blink {
+            50% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <h2>نظام المراقبة المنزلي الشفاف 🛡️</h2>
+    
+    <div class="notice-box">
+        تنبيه شفافية: هذا التطبيق يطلب صلاحية الوصول للكاميرا والميكروفون لبث الصوت والصورة بشكل مباشر ومقترن بجهازك الآخر فقط. لا يتم تسجيل أو حفظ أي بيانات خارج نطاق اتصالك المباشر الآمن.
+    </div>
+    
+    <div id="status" class="status-indicator">الحالة: في انتظار إذن الوصول الصريح...</div>
+    
+    <video id="localVideo" autoplay playsinline muted></video>
+    
+    <br>
+    <button id="startBtn">بدء تشغيل البث الشفاف</button>
+</div>
+
+<script>
+// كود تشغيل الواجهة والربط الآمن الشفاف
+const startButton = document.getElementById('startBtn');
+const localVideo = document.getElementById('localVideo');
+const statusDiv = document.getElementById('status');
+
+let localStream = null;
+
+async function startCapture() {
+    try {
+        // طلب الصلاحيات بشكل رسمي وشفاف من نظام التشغيل
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+        
+        // عرض البث فوراً للمستخدم ليكون على علم تام بما يتم مشاركته
+        localVideo.srcObject = localStream;
+        
+        // تحديث الواجهة لتنبيه المستخدم بنشاط الكاميرا المستمر
+        statusDiv.innerText = "🔴 جاري البث الآن ومشاركة الكاميرا والميكروفون بشكل مرئي";
+        statusDiv.classList.add('status-active');
+        
+        // تجهيز قنوات الاتصال المباشر (Peer-to-Peer) عبر WebRTC المشفر
+        initiateWebRTC(localStream);
+
+    } catch (error) {
+        console.error("خطأ في الحصول على الصلاحيات:", error);
+        statusDiv.innerText = "❌ تم رفض الصلاحية أو حدث خطأ. لا يمكن العمل بدون موافقتك الصريحة.";
+        statusDiv.style.color = "#d93025";
+        statusDiv.style.backgroundColor = "#fce8e6";
+    }
+}
+
+function initiateWebRTC(stream) {
+    // استخدام خوادم STUN العامة من جوجل لإتمام الربط المباشر فقط دون تخزين أي داتا
+    const configuration = {
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
+    
+    const peerConnection = new RTCPeerConnection(configuration);
+
+    // إضافة مسارات الصوت والفيديو المسموح بها إلى الاتصال الآمن المشفر
+    stream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, stream);
+    });
+    
+    console.log("تم تهيئة بروتوكول WebRTC المشفر للربط التلقائي بين الأجهزة بنجاح.");
+}
+
+// الاستماع لضغط زر البدء بناءً على رغبة المستخدم الكاملة
+startButton.addEventListener('click', startCapture);
+</script>
+
+</body>
+</html>
