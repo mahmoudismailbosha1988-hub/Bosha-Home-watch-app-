@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق المراقبة المنزلي الشفاف الكامل</title>
+    <title>تطبيق المراقبة المنزلي الأمن الشفاف الكامل</title>
     <!-- استدعاء المكتبة المساعدة للربط بين الهاتفين عبر السيرفر -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
@@ -137,7 +137,7 @@ const rtcConfig = {
 
 async function startCapture() {
     try {
-        // 1. طلب الصلاحيات بشكل رسمي وشفاف من نظام التشغيل
+        // 1. طلب الصلاحيات بشكل رسمي وشفاف وأمن من نظام التشغيل
         localStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
