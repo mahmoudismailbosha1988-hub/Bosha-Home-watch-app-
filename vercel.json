@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/_vercel/speed-insights/(.*)",
+      "dest": "/_vercel/speed-insights/$1"
+    },
+    {
+      "src": "/",
+      "dest": "index.html"
+    },
+    {
+      "src": "/socket.io/(.*)",
+      "dest": "server.js"
+    }
+  ]
+}
